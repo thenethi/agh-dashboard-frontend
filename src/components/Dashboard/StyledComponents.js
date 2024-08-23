@@ -1,5 +1,4 @@
 import styled from "styled-components";
-import Draggable from "react-draggable"; // Import react-draggable
 
 export const DashboardContainer = styled.div`
   background-color: #000;
@@ -7,7 +6,7 @@ export const DashboardContainer = styled.div`
   color: #fff;
 `;
 
-export const WidgetContainer = styled(Draggable)`
+export const WidgetContainer = styled.div`
   background-color: #1a1a1a;
   border: 1px solid #333;
   border-radius: 8px;
@@ -19,21 +18,13 @@ export const WidgetContainer = styled(Draggable)`
   color: #ffffff;
   font-size: 1.2em;
   text-align: center;
-  cursor: grab; // Change cursor to indicate draggable
+  cursor: grabbing;
   user-select: none;
   &.react-grid-item.react-grid-placeholder {
     background: none;
     border: 2px dotted #aaa;
   }
-
-  // Mobile-specific styles
-  @media (max-width: 768px) {
-    cursor: grab;
-    touch-action: none; // Prevent default touch actions like scrolling during dragging
-  }
 `;
-
-// Other styled components remain unchanged
 
 export const GridTitle = styled.h2`
   font-size: 1.8em;
