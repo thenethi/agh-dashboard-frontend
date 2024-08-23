@@ -22,6 +22,7 @@ import {
   ExportButton,
   Notification
 } from './StyledComponents';
+
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { Bar, Pie } from 'react-chartjs-2';
@@ -40,8 +41,7 @@ const Dashboard = () => {
   const buttonRef = useRef(null);
   const [actionToPerform, setActionToPerform] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
-
-  
+  const [touchStartPos, setTouchStartPos] = useState(null);
 
   const handleMouseDown = (e) => {
     setMouseDownPos({ x: e.clientX, y: e.clientY });
@@ -60,6 +60,41 @@ const Dashboard = () => {
     }
     setMouseDownPos(null);
   };
+
+  const handleTouchStart = (e) => {
+    setTouchStartPos({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    });
+  };
+
+  const handleTouchMove = (e) => {
+    if (touchStartPos) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPos.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPos.y);
+      
+      // Determine if it's a scroll (move distance > 10px) or drag
+      if (dx > 10 || dy > 10) {
+        // Prevent default scrolling if it's a drag
+        e.preventDefault();
+      }
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartPos) {
+      const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.x);
+      const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.y);
+      
+      // If the touch hasn't moved more than 10 pixels, consider it a click
+      if (dx < 10 && dy < 10) {
+        console.log('Button clicked');
+        // Perform the desired action
+      }
+    }
+    setTouchStartPos(null);
+  };
+  
 
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -214,6 +249,9 @@ const Dashboard = () => {
         isResizable={true}
         isDraggable={true}
         isDroppable={false}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <WidgetContainer key="a">
           <div style={{ padding: '20px' }}>
