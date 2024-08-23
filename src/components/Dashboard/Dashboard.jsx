@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef,useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -42,6 +42,16 @@ const Dashboard = () => {
   const [actionToPerform, setActionToPerform] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
   const [touchStartPos, setTouchStartPos] = useState(null);
+  const [isDraggable, setIsDraggable] = useState(false);
+  const longPressTimerRef = useRef(null);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
 
   const handleMouseDown = (e) => {
     setMouseDownPos({ x: e.clientX, y: e.clientY });
@@ -61,39 +71,47 @@ const Dashboard = () => {
     setMouseDownPos(null);
   };
 
-  const handleTouchStart = (e) => {
+  const handleTouchStart = useCallback((e) => {
     setTouchStartPos({
       x: e.touches[0].clientX,
       y: e.touches[0].clientY
     });
-  };
 
-  const handleTouchMove = (e) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setIsDraggable(true);
+    }, 500); // 500ms long press to enable dragging
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
     if (touchStartPos) {
       const dx = Math.abs(e.touches[0].clientX - touchStartPos.x);
       const dy = Math.abs(e.touches[0].clientY - touchStartPos.y);
       
-      // Determine if it's a scroll (move distance > 10px) or drag
       if (dx > 10 || dy > 10) {
-        // Prevent default scrolling if it's a drag
-        e.preventDefault();
+        clearLongPressTimer();
+        if (!isDraggable) {
+          e.preventDefault(); // Prevent scrolling if not draggable
+        }
       }
     }
-  };
+  }, [touchStartPos, isDraggable, clearLongPressTimer]);
 
-  const handleTouchEnd = (e) => {
-    if (touchStartPos) {
+  const handleTouchEnd = useCallback((e) => {
+    clearLongPressTimer();
+
+    if (touchStartPos && !isDraggable) {
       const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.x);
       const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.y);
       
-      // If the touch hasn't moved more than 10 pixels, consider it a click
       if (dx < 10 && dy < 10) {
         console.log('Button clicked');
         // Perform the desired action
       }
     }
+
     setTouchStartPos(null);
-  };
+    setIsDraggable(false);
+  }, [touchStartPos, isDraggable, clearLongPressTimer]);
   
 
   const exportPDF = () => {
