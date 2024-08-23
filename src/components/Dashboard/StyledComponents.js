@@ -4,6 +4,7 @@ export const DashboardContainer = styled.div`
   background-color: #000;
   min-height: 100vh;
   color: #fff;
+  text-align: center;
 `;
 
 export const WidgetContainer = styled.div`
