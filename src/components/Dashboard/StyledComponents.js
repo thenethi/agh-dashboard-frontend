@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { FaEdit } from "react-icons/fa";
 
 export const DashboardContainer = styled.div`
   background-color: #000;
@@ -85,9 +86,19 @@ export const ChartContainer = styled.div`
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   padding: 10px;
   cursor: pointer;
+  max-height: 100%; // Adjust this value as needed
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 `;
 
 export const ExportButtonContainer = styled.div`
@@ -138,5 +149,55 @@ export const Notification = styled.div`
     90% {
       opacity: 1;
     }
+  }
+`;
+
+export const EditableHeadingContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+`;
+
+export const HeadingInput = styled.input`
+  background-color: #2a2a2a;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 1 em;
+  width: 80%;
+  margin-right: 10px;
+
+  &:focus {
+    outline: none;
+    border-color: #1a73e8;
+  }
+`;
+
+export const EditIcon = styled(FaEdit)`
+  color: #1a73e8;
+  cursor: pointer;
+  font-size: 1.2em;
+  transition: color 0.3s ease;
+  margin-left: 10px;
+  margin-top: 15px;
+  &:hover {
+    color: #135ab2;
+  }
+`;
+
+export const SaveButton = styled.button`
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: #135ab2;
   }
 `;

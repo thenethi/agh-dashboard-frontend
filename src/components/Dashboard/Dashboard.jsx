@@ -17,20 +17,66 @@ import {
   ChartContainer,
   ExportButtonContainer,
   ExportButton,
-  Notification
+  Notification,
+  EditableHeadingContainer,
+  HeadingInput,
+  SaveButton,
+  EditIcon
 } from './StyledComponents';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
-import { data, options, pieData, pieOptions, layout, cols, breakpoints, exportPDF, exportExcel, exportCSV, shareViaEmail } from "../data/functionsData";
+import { data, pieData, pieOptions, layout, cols, breakpoints, exportPDF, exportExcel, exportCSV, shareViaEmail } from "../data/functionsData";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+const EditableHeading = ({ heading, onSave }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedHeading, setEditedHeading] = useState(heading);
+
+  const handleSave = () => {
+    onSave(editedHeading);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <EditableHeadingContainer>
+        <HeadingInput
+          type="text"
+          value={editedHeading}
+          onChange={(e) => setEditedHeading(e.target.value)}
+        />
+        <SaveButton onClick={handleSave}>Save</SaveButton>
+      </EditableHeadingContainer>
+    );
+  }
+
+  return (
+    <EditableHeadingContainer>
+      <h3 style={{fontSize:"16px",padding:"10px",marginTop:"15px",paddingRight:"0px"}}>{heading}</h3>
+      <EditIcon onClick={() => setIsEditing(true)} />
+    </EditableHeadingContainer>
+  );
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
+
+  const [headings, setHeadings] = useState(() => {
+    const savedHeadings = localStorage.getItem('dashboardHeadings');
+    return savedHeadings ? JSON.parse(savedHeadings) : {
+      a: "Recruitment Analysis",
+      b: "Custom Reports",
+      c: "Recruitment Trends",
+      d: "Department-wise Hiring",
+      e: "Monthly Recruitment Summary",
+      f: "Export and Share Reports"
+    };
+  });
 
   const [mouseDownPos, setMouseDownPos] = useState(null);
   const buttonRef = useRef(null);
@@ -46,6 +92,17 @@ const Dashboard = () => {
     setIsTouch(touchDevice);
     setIsDraggable(false);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('dashboardHeadings', JSON.stringify(headings));
+  }, [headings]);
+
+  const handleHeadingChange = (key, newHeading) => {
+    setHeadings(prevHeadings => ({
+      ...prevHeadings,
+      [key]: newHeading
+    }));
+  };
 
   const copyLinkToClipboard = async () => {
     const link = window.location.href;
@@ -158,6 +215,19 @@ const Dashboard = () => {
     setActionToPerform(() => {});
   };
 
+  const options = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: headings.c
+      },
+      legend: {
+        position: 'top',
+      },
+    },
+  };
+
   return (
     <DashboardContainer>
       {showNotification && (
@@ -185,7 +255,10 @@ const Dashboard = () => {
           onTouchEnd={handleTouchEnd}
         >
           <div style={{ padding: '20px' }}>
-            <h3>Recruitment Analysis</h3>
+            <EditableHeading
+              heading={headings.a}
+              onSave={(newHeading) => handleHeadingChange('a', newHeading)}
+            />
             <RecruitmentStats>
               <StatItem>
                 <ProgressBarContainer>
@@ -243,7 +316,10 @@ const Dashboard = () => {
           onTouchEnd={handleTouchEnd}
         >
           <div style={{ padding: '20px' }}>
-            <h3 style={{ marginBottom: "10px" }}>Custom Reports</h3>
+            <EditableHeading
+              heading={headings.b}
+              onSave={(newHeading) => handleHeadingChange('b', newHeading)}
+            />
             <FormButton
               ref={buttonRef}
               onMouseDown={handleMouseDown}
@@ -266,6 +342,10 @@ const Dashboard = () => {
         >
           <ChartContainer>
             <div style={{ padding: '20px' }}>
+              <EditableHeading
+                heading={headings.c}
+                onSave={(newHeading) => handleHeadingChange('c', newHeading)}
+              />
               <Bar data={data} options={options} />
             </div>
           </ChartContainer>
@@ -278,7 +358,10 @@ const Dashboard = () => {
           onTouchEnd={handleTouchEnd}
         >
           <ChartContainer>
-            <h4>Department-wise Hiring</h4>
+            <EditableHeading
+              heading={headings.d}
+              onSave={(newHeading) => handleHeadingChange('d', newHeading)}
+            />
             <Pie data={pieData} options={pieOptions} />
           </ChartContainer>
         </WidgetContainer>
@@ -289,7 +372,10 @@ const Dashboard = () => {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <h3>Monthly Recruitment Summary</h3>
+          <EditableHeading
+            heading={headings.e}
+            onSave={(newHeading) => handleHeadingChange('e', newHeading)}
+          />
           <h4 style={{color:"#cfcfcf",margin:"10px"}}>No.of Candidates Hired: 120</h4>
           <h4 style={{color:"#cfcfcf"}}>No.of Candidates Rejected: 100</h4>
         </WidgetContainer>
@@ -301,7 +387,10 @@ const Dashboard = () => {
           onTouchEnd={handleTouchEnd}
         >
           <div style={{ padding: '20px' }}>
-            <h3 style={{ marginBottom: "20px" }}>Export and Share Reports</h3>
+            <EditableHeading
+              heading={headings.f}
+              onSave={(newHeading) => handleHeadingChange('f', newHeading)}
+            />
             <ExportButtonContainer>
               <ExportButton
                 onMouseDown={(e) => handlesMouseDown(e, exportPDF)}
