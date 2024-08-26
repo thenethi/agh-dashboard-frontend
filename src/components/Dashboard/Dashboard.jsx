@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
@@ -34,15 +34,34 @@ const Dashboard = () => {
 
   const [mouseDownPos, setMouseDownPos] = useState(null);
   const buttonRef = useRef(null);
-  const [actionToPerform, setActionToPerform] = useState(null);
+  const [actionToPerform, setActionToPerform] = useState(() => {});
   const [showNotification, setShowNotification] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
+  const [isDraggable, setIsDraggable] = useState(false);
+  const longPressTimer = useRef(null);
+  const draggedWidget = useRef(null);
 
-  const copyLinkToClipboard = () => {
+  useEffect(() => {
+    const touchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+    setIsTouch(touchDevice);
+    setIsDraggable(false);
+  }, []);
+
+  const copyLinkToClipboard = async () => {
     const link = window.location.href;
-    navigator.clipboard.writeText(link).then(() => {
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 6000);
-    });
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(link);
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 6000);
+      } catch (err) {
+        console.error('Failed to copy: ', err);
+        alert('Unable to copy link automatically. Please copy it manually: ' + link);
+      }
+    } else {
+      console.warn('Clipboard API not available');
+      alert('Unable to copy link automatically. Please copy it manually: ' + link);
+    }
   };
 
   const handleMouseDown = (e) => {
@@ -54,41 +73,61 @@ const Dashboard = () => {
       const dx = Math.abs(e.clientX - mouseDownPos.x);
       const dy = Math.abs(e.clientY - mouseDownPos.y);
 
-      // If the mouse hasn't moved more than 5 pixels, consider it a click
       if (dx < 5 && dy < 5) {
-        console.log('Button clicked, navigating to /custom-form');
         navigate('/custom-form');
       }
     }
     setMouseDownPos(null);
   };
 
-  const handleTouchStart = (e) => {
-    setMouseDownPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  const handleTouchStart = (e, widgetKey) => {
+    if (isTouch) {
+      e.preventDefault();
+      setMouseDownPos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      longPressTimer.current = setTimeout(() => {
+        setIsDraggable(true);
+        draggedWidget.current = widgetKey;
+      }, 4000);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (isTouch) {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+      if (!isDraggable) {
+        e.preventDefault();
+      }
+    }
   };
 
   const handleTouchEnd = (e) => {
-    if (mouseDownPos) {
-      const dx = Math.abs(e.changedTouches[0].clientX - mouseDownPos.x);
-      const dy = Math.abs(e.changedTouches[0].clientY - mouseDownPos.y);
+    if (isTouch) {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+      if (mouseDownPos && !isDraggable) {
+        const dx = Math.abs(e.changedTouches[0].clientX - mouseDownPos.x);
+        const dy = Math.abs(e.changedTouches[0].clientY - mouseDownPos.y);
 
-      // If the touch hasn't moved more than 5 pixels, consider it a click
-      if (dx < 5 && dy < 5) {
-        console.log('Button clicked, performing action');
-        navigate("/custom-form")
-        if (actionToPerform) {
-          actionToPerform();
-          
+        if (dx < 5 && dy < 5) {
+          navigate("/custom-form");
+          if (actionToPerform) {
+            actionToPerform();
+          }
         }
       }
+      setMouseDownPos(null);
+      setActionToPerform(() => {});
+      setIsDraggable(false);
+      draggedWidget.current = null;
     }
-    setMouseDownPos(null);
-    setActionToPerform(null);
   };
 
   const handlesMouseDown = (e, action) => {
     setMouseDownPos({ x: e.clientX, y: e.clientY });
-    setActionToPerform(action);
+    setActionToPerform(() => action);
   };
 
   const handlesMouseUp = (e) => {
@@ -96,19 +135,28 @@ const Dashboard = () => {
       const dx = Math.abs(e.clientX - mouseDownPos.x);
       const dy = Math.abs(e.clientY - mouseDownPos.y);
 
-      // If the mouse hasn't moved more than 5 pixels, consider it a click
       if (dx < 5 && dy < 5) {
-        console.log('Button clicked, performing action');
         if (actionToPerform) {
           actionToPerform();
         }
       }
     }
     setMouseDownPos(null);
-    setActionToPerform(null);
+    setActionToPerform(() => {});
   };
 
-  
+  const handleExportButtonTouchStart = (e, action) => {
+    e.stopPropagation();
+    setActionToPerform(() => action);
+  };
+
+  const handleExportButtonTouchEnd = (e) => {
+    e.stopPropagation();
+    if (actionToPerform) {
+      actionToPerform();
+    }
+    setActionToPerform(() => {});
+  };
 
   return (
     <DashboardContainer>
@@ -124,11 +172,18 @@ const Dashboard = () => {
         breakpoints={breakpoints}
         cols={cols}
         rowHeight={100}
-        isResizable={true}
-        isDraggable={true}
+        isResizable={!isTouch}
+        isDraggable={isDraggable}
         isDroppable={false}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
-        <WidgetContainer key="a">
+        <WidgetContainer
+          key="a"
+          onTouchStart={(e) => handleTouchStart(e, 'a')}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div style={{ padding: '20px' }}>
             <h3>Recruitment Analysis</h3>
             <RecruitmentStats>
@@ -181,25 +236,34 @@ const Dashboard = () => {
           </div>
         </WidgetContainer>
 
-        <WidgetContainer key="b">
+        <WidgetContainer
+          key="b"
+          onTouchStart={(e) => handleTouchStart(e, 'b')}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div style={{ padding: '20px' }}>
             <h3 style={{ marginBottom: "10px" }}>Custom Reports</h3>
             <FormButton
               ref={buttonRef}
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
-              onTouchStart={handleTouchStart}
+              onTouchStart={(e) => handleTouchStart(e, 'b')}
               onTouchEnd={handleTouchEnd}
               onMouseLeave={() => setMouseDownPos(null)}
               onTouchCancel={() => setMouseDownPos(null)}
-              
             >
               Fill the Form
             </FormButton>
           </div>
         </WidgetContainer>
 
-        <WidgetContainer key="c">
+        <WidgetContainer
+          key="c"
+          onTouchStart={(e) => handleTouchStart(e, 'c')}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <ChartContainer>
             <div style={{ padding: '20px' }}>
               <Bar data={data} options={options} />
@@ -207,76 +271,91 @@ const Dashboard = () => {
           </ChartContainer>
         </WidgetContainer>
 
-        <WidgetContainer key="d">
+        <WidgetContainer
+          key="d"
+          onTouchStart={(e) => handleTouchStart(e, 'd')}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <ChartContainer>
-              <h4>Department-wise Hiring</h4>
-              <Pie data={pieData} options={pieOptions} />
+            <h4>Department-wise Hiring</h4>
+            <Pie data={pieData} options={pieOptions} />
           </ChartContainer>
         </WidgetContainer>
 
-        <WidgetContainer key="e">
-            <h3>Monthly Recruitment Summary</h3>
-            <h4 style={{color:"#cfcfcf",margin:"10px"}}>No.of Candidates Hired: 120</h4>
-            <h4 style={{color:"#cfcfcf"}}>No.of Candidates Rejected: 100</h4>
+        <WidgetContainer
+          key="e"
+          onTouchStart={(e) => handleTouchStart(e, 'e')}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <h3>Monthly Recruitment Summary</h3>
+          <h4 style={{color:"#cfcfcf",margin:"10px"}}>No.of Candidates Hired: 120</h4>
+          <h4 style={{color:"#cfcfcf"}}>No.of Candidates Rejected: 100</h4>
         </WidgetContainer>
 
-        <WidgetContainer key="f">
-        <div style={{ padding: '20px' }}>
-          <h3 style={{ marginBottom: "20px" }}>Export and Share Reports</h3>
-          <ExportButtonContainer>
-            <ExportButton
-              onMouseDown={(e) => handlesMouseDown(e, exportPDF)}
-              onMouseUp={handlesMouseUp}
-              onTouchStart={(e) => handlesMouseDown(e, exportPDF)}
-              onTouchEnd={handlesMouseUp}
-              onMouseLeave={() => setMouseDownPos(null)}
-              onTouchCancel={() => setMouseDownPos(null)}
-            >
-              Export PDF
-            </ExportButton>
-            <ExportButton
-              onMouseDown={(e) => handlesMouseDown(e, exportExcel)}
-              onMouseUp={handlesMouseUp}
-              onTouchStart={(e) => handlesMouseDown(e, exportExcel)}
-              onTouchEnd={handlesMouseUp}
-              onMouseLeave={() => setMouseDownPos(null)}
-              onTouchCancel={() => setMouseDownPos(null)}
-            >
-              Export Excel
-            </ExportButton>
-            <ExportButton
-              onMouseDown={(e) => handlesMouseDown(e, exportCSV)}
-              onMouseUp={handlesMouseUp}
-              onTouchStart={(e) => handlesMouseDown(e, exportCSV)}
-              onTouchEnd={handlesMouseUp}
-              onMouseLeave={() => setMouseDownPos(null)}
-              onTouchCancel={() => setMouseDownPos(null)}
-            >
-              Export CSV
-            </ExportButton>
-            <ExportButton
-              onMouseDown={(e) => handlesMouseDown(e, shareViaEmail)}
-              onMouseUp={handlesMouseUp}
-              onTouchStart={(e) => handlesMouseDown(e, shareViaEmail)}
-              onTouchEnd={handlesMouseUp}
-              onMouseLeave={() => setMouseDownPos(null)}
-              onTouchCancel={() => setMouseDownPos(null)}
-            >
-              Share via Email
-            </ExportButton>
-            <ExportButton
-              onMouseDown={(e) => handlesMouseDown(e, copyLinkToClipboard)}
-              onMouseUp={handlesMouseUp}
-              onTouchStart={(e) => handlesMouseDown(e, copyLinkToClipboard)}
-              onTouchEnd={handlesMouseUp}
-              onMouseLeave={() => setMouseDownPos(null)}
-              onTouchCancel={() => setMouseDownPos(null)}
-            >
-              Copy Link
-            </ExportButton>
-          </ExportButtonContainer>
-        </div>
-      </WidgetContainer>
+        <WidgetContainer
+          key="f"
+          onTouchStart={(e) => handleTouchStart(e, 'f')}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div style={{ padding: '20px' }}>
+            <h3 style={{ marginBottom: "20px" }}>Export and Share Reports</h3>
+            <ExportButtonContainer>
+              <ExportButton
+                onMouseDown={(e) => handlesMouseDown(e, exportPDF)}
+                onMouseUp={handlesMouseUp}
+                onTouchStart={(e) => handleExportButtonTouchStart(e, exportPDF)}
+                onTouchEnd={handleExportButtonTouchEnd}
+                onMouseLeave={() => setActionToPerform(() => {})}
+                onTouchCancel={() => setActionToPerform(() => {})}
+              >
+                Export PDF
+              </ExportButton>
+              <ExportButton
+                onMouseDown={(e) => handlesMouseDown(e, exportExcel)}
+                onMouseUp={handlesMouseUp}
+                onTouchStart={(e) => handleExportButtonTouchStart(e, exportExcel)}
+                onTouchEnd={handleExportButtonTouchEnd}
+                onMouseLeave={() => setActionToPerform(() => {})}
+                onTouchCancel={() => setActionToPerform(() => {})}
+              >
+                Export Excel
+              </ExportButton>
+              <ExportButton
+                onMouseDown={(e) => handlesMouseDown(e, exportCSV)}
+                onMouseUp={handlesMouseUp}
+                onTouchStart={(e) => handleExportButtonTouchStart(e, exportCSV)}
+                onTouchEnd={handleExportButtonTouchEnd}
+                onMouseLeave={() => setActionToPerform(() => {})}
+                onTouchCancel={() => setActionToPerform(() => {})}
+              >
+                Export CSV
+              </ExportButton>
+              <ExportButton
+                onMouseDown={(e) => handlesMouseDown(e, shareViaEmail)}
+                onMouseUp={handlesMouseUp}
+                onTouchStart={(e) => handleExportButtonTouchStart(e, shareViaEmail)}
+                onTouchEnd={handleExportButtonTouchEnd}
+                onMouseLeave={() => setActionToPerform(() => {})}
+                onTouchCancel={() => setActionToPerform(() => {})}
+              >
+                Share via Email
+              </ExportButton>
+              <ExportButton
+                onMouseDown={(e) => handlesMouseDown(e, copyLinkToClipboard)}
+                onMouseUp={handlesMouseUp}
+                onTouchStart={(e) => handleExportButtonTouchStart(e, copyLinkToClipboard)}
+                onTouchEnd={handleExportButtonTouchEnd}
+                onMouseLeave={() => setActionToPerform(() => {})}
+                onTouchCancel={() => setActionToPerform(() => {})}
+              >
+                Copy Link
+              </ExportButton>
+            </ExportButtonContainer>
+          </div>
+        </WidgetContainer>
       </ResponsiveGridLayout>
     </DashboardContainer>
   );
